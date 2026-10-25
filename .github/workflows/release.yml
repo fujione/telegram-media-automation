@@ -51,6 +51,19 @@ jobs:
             exit 1
           fi
           grep -Eq '^HTTP/[^ ]+ 404' release-status.txt
+          tag_path="repos/$GITHUB_REPOSITORY/git/ref/tags/v$RELEASE_VERSION"
+          if gh api --include "$tag_path" > tag-status.txt 2>/dev/null; then
+            read -r tag_kind tag_object < <(gh api "$tag_path" --jq '[.object.type,.object.sha]|@tsv')
+            for attempt in {1..8}; do
+              if [[ "$tag_kind" == commit ]]; then break; fi
+              test "$tag_kind" = tag
+              read -r tag_kind tag_object < <(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_object" --jq '[.object.type,.object.sha]|@tsv')
+            done
+            test "$tag_kind" = commit
+            test "$tag_object" = "$GITHUB_SHA"
+          else
+            grep -Eq '^HTTP/[^ ]+ 404' tag-status.txt
+          fi
       - uses: actions/download-artifact@v4
         with:
           name: verified-container
