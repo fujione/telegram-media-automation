@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark"><title>媒体工作台 · 设计预览</title>
+  <link rel="stylesheet" href="design.css?v=dark-2"><script src="design.js?v=dark-2" defer></script>
+</head>
+<body>
+<svg class="symbols" aria-hidden="true"><defs>
+  <symbol id="search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+  <symbol id="arrow" viewBox="0 0 24 24"><path d="M12 4v13m-5-5 5 5 5-5M5 20h14"/></symbol>
+  <symbol id="sliders" viewBox="0 0 24 24"><path d="M3 7h18M3 17h18"/><circle cx="9" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></symbol>
+  <symbol id="chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  <symbol id="pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="layers" viewBox="0 0 24 24"><path d="m3 8 9-5 9 5-9 5-9-5zm0 5 9 5 9-5M3 18l9 5 9-5"/></symbol>
+</defs></svg>
+<a class="skip" href="#main">跳到工作区</a>
+<header class="app-header">
+  <a class="brand" href="#resources"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>Telegram<span class="brand-secondary">Media Automation</span></span></a>
+  <nav aria-label="工作区"><span class="nav-marker" aria-hidden="true"></span><a href="#resources" class="active">找资源</a><a href="#subscriptions">追更</a><a href="#channels">频道</a></nav>
+  <div class="header-end"><span class="connection"><i></i>已连接 <small>示例状态</small></span><button id="settings" class="icon-button" aria-label="设置"><svg><use href="#sliders"/></svg></button><span class="avatar" aria-label="示例管理员">A</span></div>
+</header>
+<div class="preview-bar"><span><i></i>设计预览</span><span>全部资源与状态均为示例 · 操作不会触发实际下载</span></div>
+<main id="main">
+  <div class="workspace-heading"><div><h1 id="view-title">今晚，想看什么？</h1><p id="view-description">找到好资源，接下来交给下载队列。</p></div><button id="queue-toggle" class="button secondary" aria-controls="queue" aria-expanded="true"><svg><use href="#arrow"/></svg><span id="queue-toggle-label">收起队列</span><b id="queue-count">2</b></button></div>
+  <div class="workbench" id="workbench">
+    <section class="resource-workspace" aria-label="主工作区">
+      <div id="resources" class="view">
+        <form id="search-form" class="search-form"><label for="query">搜索资源</label><div class="search-box"><svg aria-hidden="true"><use href="#search"/></svg><input id="query" value="示例剧集" placeholder="输入片名或季集，例如 S01E22" required><label class="source-label"><span class="sr-only">搜索频道</span><select id="search-channel"><option value="all">全部频道</option><option value="A">示例频道 A</option><option value="B">示例频道 B</option><option value="C">示例频道 C</option></select></label><button class="button primary" type="submit">搜索</button></div></form>
+        <div class="filter-line"><div class="segments" aria-label="分辨率筛选"><button type="button" data-quality="all" aria-pressed="true">全部画质</button><button type="button" data-quality="2160" aria-pressed="false">2160p</button><button type="button" data-quality="1080" aria-pressed="false">1080p</button></div><button id="filter-button" class="text-button" aria-expanded="false" aria-controls="advanced"><svg><use href="#sliders"/></svg>筛选</button></div>
+        <div id="advanced" hidden class="advanced"><label>限定集数<input id="episode-filter" type="number" min="1" placeholder="全部"></label><label>最大大小（GB）<input id="size-filter" type="number" min="0.1" step="0.1" placeholder="不限"></label><button id="clear-filters" class="button secondary" type="button">清除限定</button></div>
+        <div class="list-heading"><div><h2 id="search-title">示例剧集</h2><span id="result-count">18 个资源</span></div><label>排序<select id="sort"><option value="episode">按季集</option><option value="size">文件大小</option></select></label></div>
+        <div id="resource-list" class="resource-list"></div>
+        <div class="list-footer"><span id="page-info">1–10 / 18</span><div class="pagination"><button id="previous" class="icon-button" aria-label="上一页"><svg class="reverse"><use href="#chevron"/></svg></button><span id="page-number">1 / 2</span><button id="next" class="icon-button" aria-label="下一页"><svg><use href="#chevron"/></svg></button></div></div>
+        <div class="selection-bar"><span id="selection-info">已选 2 个资源</span><div><button id="clear-selection" class="text-button">清空</button><button id="batch-download" class="button primary"><svg><use href="#arrow"/></svg>下载所选</button></div></div>
+      </div>
+      <div id="subscriptions" class="view" hidden><div class="management-heading"><div><h2>追更订阅</h2><p>来源与追更起点，一处管理。</p></div><button id="new-subscription" class="button primary">新建订阅</button></div><div id="subscription-list"></div></div>
+      <div id="channels" class="view" hidden><div class="management-heading"><div><h2>资源频道</h2><p>搜索和追更使用的频道。</p></div><button id="new-channel" class="button primary">添加频道</button></div><div id="channel-list"></div></div>
+    </section>
+    <aside id="queue" class="queue" aria-label="下载队列">
+      <div class="queue-heading"><div><svg aria-hidden="true"><use href="#arrow"/></svg><h2>下载队列</h2></div><span id="queue-total">3</span></div>
+      <div class="queue-tabs" aria-label="队列筛选"><button data-state="active" aria-pressed="true">进行中 <b id="active-count">2</b></button><button data-state="complete" aria-pressed="false">已结束 <b id="complete-count">1</b></button></div>
+      <div id="queue-list" class="queue-list"></div>
+      <div class="queue-note"><svg aria-hidden="true"><use href="#layers"/></svg><span>任务详情里确认入库位置与来源。</span></div>
+      <div class="queue-bottom"><span>下载完成后</span><strong>按任务计划入库</strong></div>
+    </aside>
+  </div>
+  <footer class="workspace-footer"><span>示例数据 · 当前浏览器内操作</span><span>无需登录 · 未连接后台 API</span></footer>
+</main>
+<dialog id="detail"><div class="dialog-head"><span id="detail-label">资源详情</span><button class="icon-button" data-close="detail" aria-label="关闭详情"><svg><use href="#close"/></svg></button></div><h2 id="detail-title"></h2><div id="detail-body"></div><div id="detail-actions" class="dialog-actions"></div></dialog>
+<dialog id="edit"><form id="edit-form"><div class="dialog-head"><h2 id="edit-title">新建订阅</h2><button type="button" class="icon-button" data-close="edit" aria-label="关闭表单"><svg><use href="#close"/></svg></button></div><label id="name-label">名称<input id="edit-name" required></label><label id="extra-label">频道链接<input id="edit-extra" placeholder="https://t.me/example" required></label><p class="form-note">仅预览表单和操作反馈，不保存到服务。</p><div class="dialog-actions"><button class="button secondary" type="button" data-close="edit">取消</button><button class="button primary" type="submit">保存示例</button></div></form></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+</body></html>

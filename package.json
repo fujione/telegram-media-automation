@@ -1,0 +1,10 @@
+{
+  "name": "telegram-media-automation-browser-checks",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/web_workspace.test.cjs tests/web_replacement.test.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

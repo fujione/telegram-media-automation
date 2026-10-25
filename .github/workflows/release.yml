@@ -1,0 +1,148 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact package version, without the v prefix
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  image:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+    outputs:
+      image: ${{ steps.metadata.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate release source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          test "$REPOSITORY_PRIVATE" = false
+          python - <<'PY'
+          import os, re, tomllib
+          from pathlib import Path
+          version = os.environ['RELEASE_VERSION']
+          assert re.fullmatch(r'\d+\.\d+\.\d+(?:rc\d+)?', version), 'Invalid version'
+          assert tomllib.loads(Path('pyproject.toml').read_text())['project']['version'] == version
+          assert f'telegram-media-automation:{version}' in Path('deploy/compose.yaml').read_text()
+          PY
+          if gh api --include "repos/$GITHUB_REPOSITORY/releases/tags/v$RELEASE_VERSION" > release-status.txt 2>/dev/null; then
+            echo "This version is already published; use a new version." >&2
+            exit 1
+          fi
+          grep -Eq '^HTTP/[^ ]+ 404' release-status.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: verified-container
+          path: candidate
+      - name: Load the image tested by this workflow
+        working-directory: candidate
+        run: |
+          sha256sum --check SHA256SUMS
+          docker load --input image.tar.gz
+          version="$(docker run --rm --network none --entrypoint python telegram-media-automation:candidate-$GITHUB_SHA -c 'from telegram_media_automation import __version__; print(__version__)')"
+          test "$version" = "$RELEASE_VERSION"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push fixed version and source tags
+        id: metadata
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          docker tag "telegram-media-automation:candidate-$GITHUB_SHA" "$image:$RELEASE_VERSION"
+          docker tag "telegram-media-automation:candidate-$GITHUB_SHA" "$image:sha-$GITHUB_SHA"
+          docker push "$image:$RELEASE_VERSION"
+          docker push "$image:sha-$GITHUB_SHA"
+          mkdir -p bundle
+          docker image inspect "$image:$RELEASE_VERSION" > image-metadata.json
+          IMAGE="$image" python - <<'PY'
+          import json, os
+          from pathlib import Path
+          metadata = json.loads(Path('image-metadata.json').read_text())[0]
+          image = os.environ['IMAGE']
+          digest = next(value for value in metadata['RepoDigests'] if value.startswith(image + '@'))
+          Path('bundle/release.json').write_text(json.dumps({
+              'version': os.environ['RELEASE_VERSION'], 'source_revision': os.environ['GITHUB_SHA'],
+              'image': image + ':' + os.environ['RELEASE_VERSION'],
+              'image_digest': digest, 'image_id': metadata['Id'], 'platform': 'linux/amd64',
+          }, indent=2) + '\n')
+          PY
+          docker save "$image:$RELEASE_VERSION" | gzip -1 > bundle/image-linux-amd64.tar.gz
+      - uses: actions/download-artifact@v4
+        with:
+          name: cyclonedx-sbom
+          path: bundle
+      - name: Prepare checked release files
+        run: |
+          cp deploy/compose.yaml bundle/compose.yaml
+          cp deploy/README.md bundle/DOCKER.md
+          python scripts/prepare_release.py bundle --version "$RELEASE_VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle
+          path: bundle/
+          compression-level: 0
+          retention-days: 7
+
+  publish:
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      IMAGE: ${{ needs.image.outputs.image }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-bundle
+          path: bundle
+      - name: Verify the public image without registry credentials
+        run: |
+          export DOCKER_CONFIG="$(mktemp -d)"
+          docker pull "$IMAGE:$RELEASE_VERSION"
+          docker image inspect "$IMAGE:$RELEASE_VERSION" > pulled-image.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          release = json.loads(Path('bundle/release.json').read_text())
+          pulled = json.loads(Path('pulled-image.json').read_text())[0]
+          assert pulled['Id'] == release['image_id'], 'Public image differs from the tested image'
+          assert release['image_digest'] in pulled['RepoDigests']
+          PY
+      - name: Publish versioned Docker bundle
+        working-directory: bundle
+        run: |
+          sha256sum --check SHA256SUMS
+          if gh release view "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "A release already exists; do not overwrite published versions." >&2
+            exit 1
+          fi
+          options=()
+          if [[ "$RELEASE_VERSION" == *rc* ]]; then options+=(--prerelease); fi
+          gh release create "v$RELEASE_VERSION" ./* --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --title "$RELEASE_VERSION" --notes-file release-notes.md "${options[@]}"

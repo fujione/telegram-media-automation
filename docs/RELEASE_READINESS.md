@@ -1,0 +1,64 @@
+# 发布验收清单
+
+当前候选 `0.1.0rc4`，数据库 schema 14。订阅编辑、扫描历史、立即检查、脱敏诊断已在目标 NAS 上线并通过重启验证；公开 Compose 的空卷首次配置也已通过 Linux Docker CI。公共镜像和 Release 尚未发布，真实全新 Telegram Session 的贯通验收仍待账号所有者完成。
+
+## 当前证据（2026-10-26）
+
+| 项目 | 状态与证明范围 |
+| --- | --- |
+| Python / 静态检查 | 本地234项测试通过，应用语句覆盖率88.10%；Ruff与严格mypy通过 |
+| 浏览器 | 中英文、8种宽度、订阅编辑/扫描历史/立即检查、诊断预览与下载一致、首次配置忙碌锁与秘密输入清空通过 |
+| Docker首次配置 | 公共Compose空命名卷、非root、只读根、一次性码、同源保护、私有文件权限、重启后会话/签名密钥/偏好保留通过 |
+| 业务贯通测试 | 首次配置→登录→频道→搜索→下载入库→追更→备份恢复→重启；Telegram使用受控替身，不替代真实账号验收 |
+| 数据升级 | 生产数据库一致性副本13→14迁移，8个业务表的完整行指纹保留；单独兼容恢复镜像读取14副本通过 |
+| 生产连续性 | 原有任务、订阅、挂载和Session保留，Telegram授权与业务就绪正常；真实成功扫描摘要/历史在实际重启后保留 |
+| 镜像隐私 | 当前已部署候选的配置与8层、7714个普通文件已扫描；未发现实际凭据或私有部署信息；2处通用密钥告警为核对过的官方Python公钥指纹 |
+| 发布包 | 配置ID、平台、运行用户、层哈希和额外附件拒绝检查已实现并测试；尚待真实公开发布工作流执行 |
+
+公共镜像目前验收平台为 `linux/amd64`，其他架构不标为已支持。开发质量检查和复现命令见 [开发文档](DEVELOPMENT.md)，公开用户只需要 [Docker部署流程](../deploy/README.md)。
+
+## 自动化可证明的产品能力
+
+| 需求 | 实现证据 | 自动化证据 |
+|---|---|---|
+| 可复现运行环境 | Python 包、容器、配置、Web、锁文件和 CI | `test_architecture.py` |
+| Web 管理员认证 | 初始化账号、带盐密码哈希、HttpOnly Cookie、CSRF、限流、退出和已有安装的账号创建流程 | `test_web_auth.py`、`test_api.py`、`test_initializer.py`、`test_cli.py` |
+| Telegram 用户账号 | 验证码、两步验证、持久 Session、稳定错误映射 | `test_telegram_gateway.py`、`test_api.py` |
+| 搜索频道 | 持久添加、暂停、恢复、删除；单次搜索可覆盖默认值 | `test_api.py` |
+| 候选识别与排序 | 中英文季集/范围、冲突、身份、语言、分辨率、HDR、编码和大小；保守身份建议、全局策略与单次硬过滤 | `test_episode_parser.py`、`test_media_identity.py`、`test_resources.py`、`test_api.py`、`test_telegram_gateway.py` |
+| 持久下载 | 原子 lease、续租、失租隔离、过期接管、`.part` 续传、跨卷校验提交、无数据超时、磁盘门禁和限速 | `test_download_worker.py`、`test_download_service.py` |
+| 任务控制 | 暂停、恢复、取消、重试、幂等创建和不可变事件时间线 | `test_states.py`、`test_repository.py`、`test_api.py` |
+| 产品化任务工作台 | 完整队列及状态分组汇总、服务端筛选导航、候选质量徽章、任务状态/错误/归档目标分层展示 | `test_repository.py`、`test_api.py` 与前端 JavaScript 语法门禁 |
+| 媒体归档 | 稳定电影/剧集命名、冲突保护、哈希去重，以及移动/同卷硬链接/校验复制策略 | `test_archive_service.py`、`test_import_service.py` |
+| 指定影视追更 | 每订阅/频道独立游标、未来集积压和过期候选清理；下载后按固化计划自动归档 | `test_subscription_worker.py`、`test_download_worker.py` |
+| 运维 | 本机/Compose 初始化、CLI 自检、代理、健康状态、保守残留清理、脱敏日志、校验备份/恢复、非 root 容器 | `test_initializer.py`、`test_doctor.py`、`test_maintenance_service.py`、`test_logging.py`、`test_backup.py` 与 CI 容器 smoke |
+
+标准本机门禁：
+
+```powershell
+uv sync --locked --all-extras
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy
+uv run pytest --cov=telegram_media_automation --cov-report=term-missing
+node --check src/telegram_media_automation/web/app.js
+node --check src/telegram_media_automation/web/workspace.js
+npm ci
+npm test
+npx playwright install chromium
+uv run python scripts/check_web_workspace.py
+uv build
+```
+
+## 公开发布前尚需完成
+
+1. 在全新数据卷按公开文档完成本人Telegram验证码/两步验证登录，再执行真实频道搜索、小文件下载、入库与追更，记录重启与升级结果。验证码和两步密码仅由账号所有者在页面输入。
+2. 以已清理的Git历史公开源码。当前工作树已扫描；旧的私有部署历史不能随公开仓库暴露。
+3. 执行发布工作流，推送固定版本镜像，验证无登录客户端可拉取，并发布Compose、离线镜像、Python依赖SBOM、元数据及全部校验值。
+4. 从公开附件和镜像重新执行空目录安装。成功推送或单次HTTP200不能代替整条安装链路验收。
+
+## 历史真机基线
+
+2026-09-10及后续旧部署已验证真实Telegram验证码恢复、公开/私有频道发现与历史搜索、约381MiB断点下载、进程中断接管、NAS跨卷归档、冲突保护和非root只读容器。这些记录支持已有下载能力，但不等同于新Docker首次配置流程已经完成真实账号验收。
+
+真实FloodWait只在自然触发时记录，不通过高频请求主动限制用户账号；合并、退避与重启保留窗口由自动化测试覆盖。更多历史记录见 [验证记录](VALIDATION_LOG.md)，本轮发布维护流程见 [RELEASING.md](RELEASING.md)。

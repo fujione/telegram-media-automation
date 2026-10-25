@@ -1,0 +1,5 @@
+Telegram Media Automation
+Copyright (c) 2026 telegram-media-automation contributors
+
+Licensed under the MIT License. Direct dependency license information is listed in
+THIRD_PARTY.md; exact resolved components are recorded in uv.lock and sbom.cdx.json.

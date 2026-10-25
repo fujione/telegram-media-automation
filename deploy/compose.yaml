@@ -1,0 +1,48 @@
+name: telegram-media-automation
+
+services:
+  api:
+    image: ${TMA_IMAGE:-ghcr.io/fujione/telegram-media-automation:0.1.0rc4}
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    ports:
+      - "${TMA_BIND_ADDRESS:-0.0.0.0}:${TMA_HOST_PORT:-8080}:8080"
+    environment:
+      APP_ENVIRONMENT: production
+      APP_BOOTSTRAP_ENABLED: "true"
+      APP_DATA_DIR: /data
+      APP_DATABASE_URL: sqlite:////data/media_automation.sqlite3
+      APP_BACKUP_DIR: /backups
+      APP_DOWNLOAD_INCOMPLETE: /downloads/incomplete
+      APP_DOWNLOAD_INBOX: /downloads/inbox
+      APP_MOVIE_ROOT: /media/movies
+      APP_TV_ROOT: /media/tv
+      APP_TELEGRAM_SESSION: /data/sessions/telegram.session
+      APP_API_TOKEN_FILE: /data/configuration/api_token
+      APP_ADMIN_CREDENTIALS_FILE: /data/configuration/install/admin_credentials.json
+      APP_TELEGRAM_API_ID_FILE: /data/configuration/install/telegram_api_id
+      APP_TELEGRAM_API_HASH_FILE: /data/configuration/install/telegram_api_hash
+      APP_TELEGRAM_PROXY_URL_FILE: /data/configuration/install/telegram_proxy_url
+    volumes:
+      - data:/data
+      - downloads:/downloads
+      - media:/media
+      - backups:/backups
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=8)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  data:
+  downloads:
+  media:
+  backups:

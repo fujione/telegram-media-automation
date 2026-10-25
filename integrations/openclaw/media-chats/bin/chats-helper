@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""OpenClaw helper for Telegram Media Automation search channels."""
+from __future__ import annotations
+
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+from urllib.parse import urlparse
+
+
+def settings() -> tuple[str, str]:
+    values = {
+        "TELEGRAM_MEDIA_API_URL": os.environ.get("TELEGRAM_MEDIA_API_URL", ""),
+        "TELEGRAM_MEDIA_API_TOKEN": os.environ.get("TELEGRAM_MEDIA_API_TOKEN", ""),
+    }
+    config = Path(os.environ.get("TELEGRAM_MEDIA_API_CONFIG", Path(__file__).with_name("api.env")))
+    if config.is_file():
+        for raw in config.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            if key in values and not values[key]:
+                values[key] = value.strip()
+    return values["TELEGRAM_MEDIA_API_URL"].rstrip("/"), values["TELEGRAM_MEDIA_API_TOKEN"]
+
+
+BASE_URL, TOKEN = settings()
+
+
+def call(path: str, method: str = "GET", body: object | None = None) -> tuple[int, object]:
+    if not BASE_URL or not TOKEN:
+        raise SystemExit("TELEGRAM_MEDIA_API_URL and TELEGRAM_MEDIA_API_TOKEN must be configured privately")
+    data = json.dumps(body, ensure_ascii=False).encode() if body is not None else None
+    req = urllib.request.Request(
+        BASE_URL + path,
+        data=data,
+        headers={"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"},
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as response:  # nosec B310
+            return response.status, json.loads(response.read() or b"null")
+    except urllib.error.HTTPError as error:
+        try:
+            payload = json.loads(error.read() or b"null")
+        except json.JSONDecodeError:
+            payload = {"error": error.reason}
+        return error.code, payload
+    except urllib.error.URLError as error:
+        raise SystemExit(f"Telegram Media Automation 不可达: {error.reason}") from error
+
+
+def finish(status: int, payload: object) -> None:
+    print(json.dumps(payload, ensure_ascii=False))
+    if not 200 <= status < 300:
+        raise SystemExit(1)
+
+
+def find(identifier: str) -> dict:
+    status, payload = call("/api/v1/channels")
+    if status != 200 or not isinstance(payload, list):
+        finish(status, payload)
+    raw = identifier.strip()
+    candidates = [raw, raw.removeprefix("@")] 
+    link = raw if "://" in raw else f"https://{raw}"
+    parsed = urlparse(link)
+    parts = [part for part in parsed.path.split("/") if part]
+    if parts and parts[0].casefold() == "s":
+        parts.pop(0)
+    if parts and parts[0].casefold() == "c" and len(parts) >= 2 and parts[1].isdigit():
+        candidates.append(f"-100{parts[1]}")
+    elif parts:
+        candidates.append(parts[0].removeprefix("@"))
+    for channel in payload:
+        if isinstance(channel, dict) and channel.get("identifier") in candidates:
+            return channel
+    raise SystemExit(f"频道未配置: {identifier}")
+
+
+def main() -> None:
+    action = sys.argv[1] if len(sys.argv) > 1 else ""
+    if action == "list" and len(sys.argv) == 2:
+        finish(*call("/api/v1/channels"))
+    elif action == "discover" and len(sys.argv) <= 3:
+        limit = sys.argv[2] if len(sys.argv) == 3 else "200"
+        finish(*call(f"/api/v1/channels/discover?limit={limit}"))
+    elif action == "inspect" and len(sys.argv) == 3:
+        finish(*call("/api/v1/channels/inspect", "POST", {"identifier": sys.argv[2]}))
+    elif action == "add" and len(sys.argv) in (3, 4):
+        body = {"identifier": sys.argv[2]}
+        if len(sys.argv) == 4:
+            body["name"] = sys.argv[3]
+        finish(*call("/api/v1/channels", "POST", body))
+    elif action in {"pause", "resume", "remove"} and len(sys.argv) == 3:
+        channel = find(sys.argv[2])
+        channel_id = channel["id"]
+        if action == "remove":
+            finish(*call(f"/api/v1/channels/{channel_id}", "DELETE"))
+        else:
+            finish(*call(f"/api/v1/channels/{channel_id}/{action}", "POST"))
+    else:
+        raise SystemExit("usage: chats-helper list | inspect <channel> | discover [limit] | add <channel> [name] | pause|resume|remove <channel>")
+
+
+if __name__ == "__main__":
+    main()
