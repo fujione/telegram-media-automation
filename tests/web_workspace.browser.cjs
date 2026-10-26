@@ -351,6 +351,35 @@ async function main() {
     await localePage.locator('#service-label').filter({hasText:'Telegram connection unavailable'}).waitFor();
     await localePage.locator('#system-status').filter({hasText:'Proxy connection failed. Check the exit node.'}).waitFor();
     assert.equal(await localePage.locator('#phone-form').isVisible(),false);
+    await localePage.locator('#connect-telegram').click();
+    await localePage.locator('#phone-form').waitFor({state:'visible'});
+    await localePage.locator('#phone').fill('+15550000000');
+    let codeRequests=0, finishCode;
+    await localePage.route('**/api/v1/telegram/login/code',async route=>{
+      codeRequests+=1;
+      if(codeRequests===1) {
+        await new Promise(resolve=>{finishCode=resolve;});
+        return route.fulfill({status:503,json:{detail:{message:'Proxy unavailable; retry when restored'}}});
+      }
+      return route.fulfill({json:{status:'code_sent',authorized:false}});
+    });
+    await localePage.locator('#phone-form button').click();
+    await localePage.locator('#phone-form[aria-busy="true"]').waitFor();
+    assert.equal(await localePage.locator('#phone-form button').isDisabled(),true);
+    assert.equal(await localePage.locator('#phone-form button').textContent(),'Sending…');
+    await localePage.locator('#phone-form').dispatchEvent('submit');
+    await localePage.evaluate(()=>telegramStatus());
+    assert.equal(codeRequests,1);
+    finishCode();
+    await localePage.locator('#telegram-dialog-state').filter({hasText:'Proxy unavailable; retry when restored'}).waitFor();
+    await localePage.locator('#phone-form[aria-busy="false"]').waitFor();
+    assert.equal(await localePage.locator('#phone').inputValue(),'+15550000000');
+    assert.equal(await localePage.locator('#phone-form button').isEnabled(),true);
+    await localePage.locator('#phone-form button').click();
+    await localePage.locator('#code-form').waitFor({state:'visible'});
+    assert.equal(codeRequests,2);
+    assert.equal(await localePage.locator('#code').isEnabled(),true);
+    await localePage.locator('[data-close="telegram-dialog"]').click();
     await localePage.route('**/api/v1/tasks/summary', route => route.fulfill({status:401,json:{detail:{message:'Session expired'}}}));
     await localePage.goto(url);
     await localePage.locator('#login-form').waitFor({state:'visible'});

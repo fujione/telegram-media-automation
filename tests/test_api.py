@@ -288,7 +288,6 @@ def test_liveness_is_public_but_tasks_require_authentication(tmp_path: Path) -> 
     assert 'id="import-target"' in page
     script = api.get("/static/app.js")
     assert script.status_code == 200
-    assert "form.hidden = stage !== requiredStage;" in script.text
     workspace = api.get("/static/workspace.js")
     assert workspace.status_code == 200
     assert "navigateWorkspace" in workspace.text

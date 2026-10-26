@@ -65,6 +65,9 @@ class FakeClient:
     async def is_user_authorized(self) -> bool:
         return True
 
+    async def get_me(self) -> Any:
+        return SimpleNamespace(id=123)
+
     def iter_messages(self, _channel: str | int, **_kwargs: object) -> AsyncIterator[Any]:
         async def values() -> AsyncIterator[Any]:
             for message in self.messages:
@@ -111,6 +114,32 @@ class FakeClient:
 
 def gateway(tmp_path: Path) -> TelethonGateway:
     return TelethonGateway(tmp_path / "tg.session", 123, "hash", client_factory=FakeClient)
+
+
+@pytest.mark.asyncio
+async def test_authorization_checks_rpc_even_when_cached_authorization_is_true(
+    tmp_path: Path,
+) -> None:
+    client = gateway(tmp_path)
+    assert await client.is_authorized() is True
+
+    async def offline() -> Any:
+        raise ConnectionResetError("provider connection lost")
+
+    client.client.get_me = offline
+    with pytest.raises(ConnectionResetError):
+        await client.is_authorized()
+
+
+@pytest.mark.asyncio
+async def test_authorization_reports_login_required_for_unauthorized_rpc(tmp_path: Path) -> None:
+    client = gateway(tmp_path)
+
+    async def unauthenticated() -> None:
+        return None
+
+    client.client.get_me = unauthenticated
+    assert await client.is_authorized() is False
 
 
 def test_proxy_is_passed_to_client_factory_without_exposing_credentials(tmp_path: Path) -> None:

@@ -188,7 +188,10 @@ class TelethonGateway:
 
     async def is_authorized(self) -> bool:
         await self.connect()
-        return bool(await self.client.is_user_authorized())
+        # Telethon caches is_user_authorized(), which can remain true after
+        # the proxy stops working. get_me() performs an RPC and returns None
+        # for an unauthenticated session without exposing account details.
+        return await self.client.get_me() is not None
 
     async def request_login_code(self, phone: str) -> str:
         await self.connect()

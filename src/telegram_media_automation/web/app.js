@@ -1,6 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 let apiConnected = false;
 let dockerBootstrapRequired = false;
+let telegramAuthBusy = false;
 let currentLocale = "zh-CN";
 let currentTimeZone = "Asia/Shanghai";
 const resourceCache = new Map();
@@ -16,6 +17,9 @@ const taskFilterStates = {
 };
 const translations = {
   "en-US": {
+    "正在发送验证码，请稍候…": "Sending the code, please wait…",
+    "发送中…": "Sending…",
+    "正在验证，请稍候…": "Verifying, please wait…",
     "替换": "Replace",
     "下载后替换媒体库中的已有文件": "Replace an existing library file after download",
     "替换媒体库中的已有文件": "Replace an existing library file",
@@ -493,23 +497,34 @@ function setTelegramStage(stage, message = "") {
   const copy = message || t(telegramStateLabels[stage]) || stage;
   $("#telegram-state").textContent = copy;
   $("#telegram-dialog-state").textContent = copy;
-  $("#connect-telegram").hidden = !["login_required", "code_sent", "password_required"].includes(stage);
+  $("#connect-telegram").hidden = !["login_required", "code_sent", "password_required", "unavailable"].includes(stage);
   for (const [selector, requiredStage] of [["#phone-form", "login_required"], ["#code-form", "code_sent"], ["#password-form", "password_required"]]) {
     const form = $(selector);
-    form.hidden = stage !== requiredStage;
-    for (const control of form.elements) control.disabled = !apiConnected || form.hidden;
+    form.hidden = stage !== requiredStage && !(stage === "unavailable" && requiredStage === "login_required");
+    form.setAttribute("aria-busy", String(telegramAuthBusy));
+    for (const control of form.elements) control.disabled = !apiConnected || form.hidden || telegramAuthBusy;
   }
+  $("#phone-form button").textContent = t(telegramAuthBusy && stage === "login_required" ? "发送中…" : "发送验证码");
   if (stage === "authorized" && $("#telegram-dialog").open) $("#telegram-dialog").close();
   updateGlobalStatus();
 }
 
+function finishTelegramAuth() {
+  telegramAuthBusy = false;
+  setTelegramStage(telegramStage, $("#telegram-dialog-state").textContent);
+  if (telegramStage === "code_sent") $("#code").focus();
+  if (telegramStage === "password_required") $("#password").focus();
+}
+
 async function telegramStatus() {
-  if (["code_sent", "password_required"].includes(telegramStage)) return;
+  if (telegramAuthBusy || ["code_sent", "password_required"].includes(telegramStage) || $("#telegram-dialog").open) return;
   setTelegramStage("checking");
   try {
     const result = await api("/api/v1/telegram/status");
+    if (telegramAuthBusy || $("#telegram-dialog").open) return;
     setTelegramStage(result.status);
   } catch (error) {
+    if (telegramAuthBusy || $("#telegram-dialog").open) return;
     setTelegramStage("unavailable", error.message);
   }
 }
@@ -1147,28 +1162,38 @@ $("#logout").addEventListener("click", async () => {
 
 $("#phone-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (telegramAuthBusy) return;
+  telegramAuthBusy = true;
+  setTelegramStage("login_required", t("正在发送验证码，请稍候…"));
   try {
     const value = await api("/api/v1/telegram/login/code", { method: "POST", body: JSON.stringify({ phone: $("#phone").value }) });
     setTelegramStage(value.status);
-    $("#code").focus();
-  } catch (error) { toast(error.message); setTelegramStage("unavailable", error.message); }
+  } catch (error) { toast(error.message); setTelegramStage("login_required", error.message); }
+  finally { finishTelegramAuth(); }
 });
 $("#code-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (telegramAuthBusy) return;
+  telegramAuthBusy = true;
+  setTelegramStage("code_sent", t("正在验证，请稍候…"));
   try {
     const value = await api("/api/v1/telegram/login/verify", { method: "POST", body: JSON.stringify({ code: $("#code").value }) });
     $("#code").value = "";
     setTelegramStage(value.status);
-    if (value.status === "password_required") $("#password").focus();
-  } catch (error) { $("#code").value = ""; toast(error.message); }
+  } catch (error) { $("#code").value = ""; toast(error.message); setTelegramStage("code_sent", error.message); }
+  finally { finishTelegramAuth(); }
 });
 $("#password-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (telegramAuthBusy) return;
+  telegramAuthBusy = true;
+  setTelegramStage("password_required", t("正在验证，请稍候…"));
   try {
     const value = await api("/api/v1/telegram/login/password", { method: "POST", body: JSON.stringify({ password: $("#password").value }) });
     $("#password").value = "";
     setTelegramStage(value.status);
-  } catch (error) { $("#password").value = ""; toast(error.message); }
+  } catch (error) { $("#password").value = ""; toast(error.message); setTelegramStage("password_required", error.message); }
+  finally { finishTelegramAuth(); }
 });
 $("#search-form").addEventListener("submit", async (event) => {
   event.preventDefault();
