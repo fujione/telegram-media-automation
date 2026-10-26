@@ -23,6 +23,8 @@ docker compose restart api
 
 进入设置，完成本人 Telegram 手机号、验证码和可选两步验证密码登录，再添加本人有权访问的频道。之后搜索资源、确认媒体身份并下载入库，或创建剧集追更。初始化码不能再次使用，也不会显示在普通日志或未登录页面中。
 
+验证码可能发到已登录设备中带认证标记的 **Telegram** 官方会话，请同时检查该会话；页面提示“验证码已发送”并不表示一定发送了手机短信。具体发送渠道由 Telegram 决定，部分短信验证流程仅支持官方手机客户端，详见 [登录验证码说明](https://telegram.org/faq#q-getting-a-code-via-telegram) 和 [授权方式说明](https://core.telegram.org/api/auth)。
+
 首次配置和 Telegram 登录前容器可能显示 unhealthy；Web 页仍可访问，完成后用以下命令查看状态：
 
 ```sh
