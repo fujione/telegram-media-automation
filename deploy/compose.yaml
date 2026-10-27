@@ -2,7 +2,7 @@ name: telegram-media-automation
 
 services:
   api:
-    image: ${TMA_IMAGE:-ghcr.io/fujione/telegram-media-automation:0.1.0rc5}
+    image: ${TMA_IMAGE:-ghcr.io/fujione/telegram-media-automation:0.1.0rc6}
     restart: unless-stopped
     read_only: true
     security_opt:

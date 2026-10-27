@@ -16,9 +16,9 @@
 
 对外仅提供 Docker 部署。使用者自行申请 Telegram API ID/Hash，登录自己的 Telegram 账号，并选择自己有权访问的频道或群组。
 
-当前预发布候选为 **0.1.0rc5 / schema 14**，支持 `linux/amd64`。从 [Releases](https://github.com/fujione/telegram-media-automation/releases) 获取固定版本 Compose、离线镜像和校验文件；完整步骤见 [Docker 部署说明](deploy/README.md)。
+当前预发布候选为 **0.1.0rc6 / schema 14**，支持 `linux/amd64`。从 [Releases](https://github.com/fujione/telegram-media-automation/releases) 获取固定版本 Compose、离线镜像和校验文件；完整步骤见 [Docker 部署说明](deploy/README.md)。
 
-发布版流程为：将 [compose.yaml](deploy/compose.yaml) 放到空目录，启动服务并读取一次性初始化码：
+发布版流程为：将 [compose.yaml](compose.yaml) 放到空目录，启动服务并读取一次性初始化码：
 
 ```sh
 docker compose up -d

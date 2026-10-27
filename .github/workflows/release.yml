@@ -130,6 +130,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       IMAGE: ${{ needs.image.outputs.image }}
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: release-bundle
@@ -147,6 +148,8 @@ jobs:
           assert pulled['Id'] == release['image_id'], 'Public image differs from the tested image'
           assert release['image_digest'] in pulled['RepoDigests']
           PY
+      - name: Verify the release Compose with the anonymously pulled image
+        run: TMA_IMAGE="$IMAGE:$RELEASE_VERSION" TMA_COMPOSE_FILE="$GITHUB_WORKSPACE/bundle/compose.yaml" bash scripts/check_docker_first_run.sh
       - name: Publish versioned Docker bundle
         working-directory: bundle
         run: |

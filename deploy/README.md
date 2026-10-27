@@ -1,6 +1,6 @@
-# Docker 首次部署（候选流程，发布验证中）
+# Docker 首次部署（预发布版）
 
-此 Compose 面向全新安装，与仓库根目录的开发 Compose 分开。默认镜像标签尚待发布；完整验收及镜像发布完成前，不将此流程标为可用的正式发布。
+此 Compose 与仓库根目录的默认配置一致，使用固定版本预构建镜像。也可从 GitHub Release 下载同名附件；源码构建使用单独的 `compose.dev.yaml`。
 
 准备 Docker Engine 和 Docker Compose 插件，将此目录的 `compose.yaml` 保存到一个空目录。宿主机无需 Python、uv、Node 或源代码。默认使用 Docker 持久化卷保存配置、Session、下载、媒体和备份。
 
@@ -31,6 +31,18 @@ docker compose restart api
 docker compose ps
 docker compose logs --tail=50 api
 ```
+
+## 使用离线镜像
+
+若设备无法从GHCR拉取镜像，从同一Release下载`image-linux-amd64.tar.gz`、`compose.yaml`和`SHA256SUMS`，核对镜像文件的SHA-256后，在该目录导入并启动：
+
+```sh
+docker load --input image-linux-amd64.tar.gz
+docker compose up -d --pull never
+docker compose exec api mediactl setup-code
+```
+
+导入的镜像已带有Compose要求的固定版本标签。之后按上面的网页配置和重启步骤继续。
 
 ## NAS 和媒体目录
 

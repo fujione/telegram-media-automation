@@ -17,7 +17,7 @@ networks:
   default:
     internal: true
 YAML
-compose=(docker compose --env-file /dev/null --project-name "$project" -f "$root/deploy/compose.yaml" -f "$override")
+compose=(docker compose --env-file /dev/null --project-name "$project" -f "${TMA_COMPOSE_FILE:-$root/compose.yaml}" -f "$override")
 cleanup() {
   result=$?
   if [[ $result != 0 ]]; then "${compose[@]}" logs --tail=80 api || true; fi
