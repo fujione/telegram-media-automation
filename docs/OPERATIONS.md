@@ -51,7 +51,7 @@ Session；需要完整灾难恢复时只能显式使用下方 CLI 参数。
 docker run --rm --read-only --tmpfs /tmp \
   --mount source=tma-restore-data,target=/data \
   --mount source=YOUR_BACKUP_VOLUME,target=/backups,readonly \
-  ghcr.io/fujione/telegram-media-automation:0.1.0rc4 \
+  ghcr.io/fujione/telegram-media-automation:0.1.0rc5 \
   mediactl restore /backups/product.zip --root /
 ```
 

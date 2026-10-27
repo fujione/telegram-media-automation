@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+## 0.1.0rc5 — 2026-10-27
+
+首个Docker公开预发布候选，数据库schema14，与rc4兼容。提供固定版本预构建镜像、独立Compose、离线镜像、依赖SBOM和校验文件；仅支持linux/amd64。
+
 ### Fixed
 
 - Telegram连接状态通过实际RPC检查，避免代理断线后复用授权缓存而误报业务就绪。
