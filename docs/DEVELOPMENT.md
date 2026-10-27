@@ -42,11 +42,11 @@ uv run mediactl serve
 登录方式。需要在当前安全终端中显示一次时可显式运行
 `uv run mediactl rotate-token --show`。
 
-使用自带 Compose 时，让初始化器直接写入容器路径和 secret 引用：
+从源码构建时使用 `compose.dev.yaml`，让初始化器直接写入容器路径和 secret 引用：
 
 ```powershell
 uv run mediactl init --docker
-docker compose up -d --build
+docker compose -f compose.dev.yaml up -d --build
 ```
 
 该命令创建 `.env`、`secrets/`、数据和下载目录；API Hash、管理 Token 及可选代理认证

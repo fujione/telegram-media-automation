@@ -43,8 +43,8 @@ def test_container_uses_project_runtime_defaults() -> None:
     assert "app_database_url=sqlite:////data/media_automation.sqlite3" in dockerfile
 
 
-def test_compose_runs_with_a_read_only_root_and_configurable_non_root_uid() -> None:
-    compose = (SOURCE.parents[1] / "compose.yaml").read_text(encoding="utf-8")
+def test_development_compose_has_read_only_root_and_configurable_non_root_uid() -> None:
+    compose = (SOURCE.parents[1] / "compose.dev.yaml").read_text(encoding="utf-8")
     assert 'user: "${TMA_UID:-10001}:${TMA_GID:-10001}"' in compose
     assert "read_only: true" in compose
     assert "/tmp:rw,noexec,nosuid,size=64m" in compose

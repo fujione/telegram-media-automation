@@ -1,6 +1,6 @@
-# Docker 首次部署（候选流程，发布验证中）
+# Docker 首次部署（预发布版）
 
-此 Compose 面向全新安装，与仓库根目录的开发 Compose 分开。默认镜像标签尚待发布；完整验收及镜像发布完成前，不将此流程标为可用的正式发布。
+此 Compose 与仓库根目录的默认配置一致，使用固定版本预构建镜像。也可从 GitHub Release 下载同名附件；源码构建使用单独的 `compose.dev.yaml`。
 
 准备 Docker Engine 和 Docker Compose 插件，将此目录的 `compose.yaml` 保存到一个空目录。宿主机无需 Python、uv、Node 或源代码。默认使用 Docker 持久化卷保存配置、Session、下载、媒体和备份。
 

@@ -43,7 +43,8 @@ jobs:
       - name: Validate Compose configuration
         run: |
           cp .env.example .env
-          docker compose config --quiet
+          docker compose -f compose.dev.yaml config --quiet
+          cmp compose.yaml deploy/compose.yaml
       - run: >-
           uv export --locked --no-dev --extra telegram --format cyclonedx1.5
           --preview-features sbom-export --no-emit-project
