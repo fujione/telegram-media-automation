@@ -32,6 +32,18 @@ docker compose ps
 docker compose logs --tail=50 api
 ```
 
+## 使用离线镜像
+
+若设备无法从GHCR拉取镜像，从同一Release下载`image-linux-amd64.tar.gz`、`compose.yaml`和`SHA256SUMS`，核对镜像文件的SHA-256后，在该目录导入并启动：
+
+```sh
+docker load --input image-linux-amd64.tar.gz
+docker compose up -d --pull never
+docker compose exec api mediactl setup-code
+```
+
+导入的镜像已带有Compose要求的固定版本标签。之后按上面的网页配置和重启步骤继续。
+
 ## NAS 和媒体目录
 
 默认面向可信局域网提供 8080 端口，首次配置需要容器终端中的一次性码。需要仅本机访问时，在该目录创建 `.env` 并写入 `TMA_BIND_ADDRESS=127.0.0.1`；端口冲突时设置 `TMA_HOST_PORT=8081` 等空闲端口。重新创建服务后访问对应端口。公网访问应由自己的 HTTPS 反向代理提供。
